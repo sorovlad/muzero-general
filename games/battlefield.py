@@ -253,18 +253,18 @@ class Battlefield:
 
         res = make_move(board, x, y)
         if res == "hit":
-            print("Hit at " + str(x + 1) + "," + str(y + 1))
+            # print("Hit at " + str(x + 1) + "," + str(y + 1))
             board[x][y] = 2
         elif res == "miss":
-            print("Sorry, " + str(x + 1) + "," + str(y + 1) + " is a miss.")
+            # print("Sorry, " + str(x + 1) + "," + str(y + 1) + " is a miss.")
             board[x][y] = 3
             if self.player == 1:
                 self.player = 2
             else:
                 self.player = 1
 
-        elif res == "try again":
-            print("Sorry, that coordinate was already hit. Please try again")
+        # elif res == "try again":
+        #     print("Sorry, that coordinate was already hit. Please try again")
 
         done = check_win(board)
 
@@ -399,7 +399,6 @@ def check_point(board, x, y):
     for i in range(max(0, x - 1), min(x + 2, 10)):
         for j in range(max(0, y - 1), min(y + 2, 10)):
             if board[i][j] == 1:
-                print(str(i) + "  " + str(j))
                 return True
     return False
 
