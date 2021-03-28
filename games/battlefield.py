@@ -19,18 +19,18 @@ class MuZeroConfig:
 
         ### Game
         self.observation_shape = (2, 10, 10)  # Dimensions of the game observation, must be 3D (channel, height, width). For a 1D array, please reshape it to (1, 1, length of array)
-        self.action_space = list(range(2))  # Fixed list of all possible actions. You should only edit the length
-        self.players = list(range(1))  # List of players. You should only edit the length
+        self.action_space = list(range(100))  # Fixed list of all possible actions. You should only edit the length
+        self.players = list(range(2))  # List of players. You should only edit the length
         self.stacked_observations = 0  # Number of previous observations and previous actions to add to the current observation
 
         # Evaluate
         self.muzero_player = 0  # Turn Muzero begins to play (0: MuZero plays first, 1: MuZero plays second)
-        self.opponent = None  # Hard coded agent that MuZero faces to assess his progress in multiplayer games. It doesn't influence training. None, "random" or "expert" if implemented in the Game class
+        self.opponent = "random"  # Hard coded agent that MuZero faces to assess his progress in multiplayer games. It doesn't influence training. None, "random" or "expert" if implemented in the Game class
 
         ### Self-Play
-        self.num_workers = 2  # Number of simultaneous threads/workers self-playing to feed the replay buffer
+        self.num_workers = 4  # Number of simultaneous threads/workers self-playing to feed the replay buffer
         self.selfplay_on_gpu = False
-        self.max_moves = 50  # Maximum number of moves if game is not finished before
+        self.max_moves = 200  # Maximum number of moves if game is not finished before
         self.num_simulations = 99  # Number of future moves self-simulated
         self.discount = 1  # Chronological discount of the reward
         self.temperature_threshold = None  # Number of moves before dropping the temperature given by visit_softmax_temperature_fn to 0 (ie selecting the best action). If None, visit_softmax_temperature_fn is used every time
@@ -175,7 +175,7 @@ class Game(AbstractGame):
         Display the game observation.
         """
         self.env.render()
-        input("Press enter to take a step ")
+        # input("Press enter to take a step ")
 
     def human_to_action(self):
         """
@@ -185,11 +185,9 @@ class Game(AbstractGame):
         Returns:
             An integer from the action space.
         """
-        choice = input(
-            f"Enter the action (0) Hit, or (1) Stand for the player {self.to_play()}: "
-        )
+        choice = input("Enter the coordinate of field(from 0 to 99)")
         while choice not in [str(action) for action in self.legal_actions()]:
-            choice = input("Enter either (0) Hit or (1) Stand : ")
+            choice = input("Enter the coordinate of field(from 0 to 99)")
         return int(choice)
 
     def action_to_string(self, action_number):
@@ -258,7 +256,7 @@ class Battlefield:
             # print("Sorry, " + str(x + 1) + "," + str(y + 1) + " is a miss.")
             board[x][y] = 3
             if self.player == 1:
-                self.player = 2
+                self.player = 0
             else:
                 self.player = 1
 
@@ -311,7 +309,7 @@ def print_board(s, board):
     # print the horizontal numbers
     line = "   "
     for i in range(10):
-        line += str(i + 1) + "  "
+        line += str(i + 1) + " "
     print(line)
 
     for i in range(10):
@@ -406,10 +404,10 @@ def make_move(board, x, y):
     # make a move on the board and return the result, hit, miss or try again for repeat hit
     if board[x][y] == -1:
         return "miss"
-    elif board[x][y] == '*' or board[x][y] == '$':
-        return "try again"
-    else:
+    elif board[x][y] == 1:
         return "hit"
+    else:
+        return "try again"
 
 
 def check_win(board):
