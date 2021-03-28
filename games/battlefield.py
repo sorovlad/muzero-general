@@ -28,10 +28,10 @@ class MuZeroConfig:
         self.opponent = None  # Hard coded agent that MuZero faces to assess his progress in multiplayer games. It doesn't influence training. None, "random" or "expert" if implemented in the Game class
 
         ### Self-Play
-        self.num_workers = 4  # Number of simultaneous threads/workers self-playing to feed the replay buffer
+        self.num_workers = 2  # Number of simultaneous threads/workers self-playing to feed the replay buffer
         self.selfplay_on_gpu = False
-        self.max_moves = 21  # Maximum number of moves if game is not finished before
-        self.num_simulations = 21  # Number of future moves self-simulated
+        self.max_moves = 50  # Maximum number of moves if game is not finished before
+        self.num_simulations = 99  # Number of future moves self-simulated
         self.discount = 1  # Chronological discount of the reward
         self.temperature_threshold = None  # Number of moves before dropping the temperature given by visit_softmax_temperature_fn to 0 (ie selecting the best action). If None, visit_softmax_temperature_fn is used every time
 
@@ -225,8 +225,8 @@ class Battlefield:
                 board_row.append(-1)
             board.append(board_row)
 
-        # add ships as last element in the array
-        board.append(ships)
+        # # add ships as last element in the array
+        # board.append(ships)
 
         # ship placement
         return computer_place_ships(board, ships)
