@@ -252,6 +252,7 @@ class Battlefield:
         if res == "hit":
             # print("Hit at " + str(x + 1) + "," + str(y + 1))
             board[x][y] = 2
+            # self.check_ship_destroyed(board, x, y)
         elif res == "miss":
             # print("Sorry, " + str(x + 1) + "," + str(y + 1) + " is a miss.")
             board[x][y] = 3
@@ -284,7 +285,34 @@ class Battlefield:
             for j in range(10):
                 if board[i][j] == 2:
                     destroyed_ships += 1
-        return destroyed_ships
+        return destroyed_ships / (4 + 3 * 2 + 2 * 3 + 4)
+
+    def check_ship_destroyed(self, board, x, y):
+        if x > 0 and board[x - 1][y] == 1:
+            return False
+        if x < 9 and board[x + 1][y] == 1:
+            return False
+        if y > 0 and board[x][y - 1] == 1:
+            return False
+        if y < 9 and board[x][y + 1] == 1:
+            return False
+
+        # ship_points = self.get_near_ship_points(board, x, y)
+
+
+    # def get_near_ship_points(self, board, x, y):
+    #     ship_points = [[x, y]]
+    #
+    #     if x > 0 and board[x - 1][y] == 2:
+    #         ship_points.append([x - 1, y])
+    #     if x < 9 and board[x + 1][y] == 2:
+    #         ship_points.append([x + 1, y])
+    #     if y > 0 and board[x][y - 1] == 2:
+    #         ship_points.append([x, y - 1])
+    #     if y < 9 and board[x][y + 1] == 2:
+    #         ship_points.append([x, y + 1])
+    #
+    #     return ship_points;
 
     def to_play(self):
         return self.player
@@ -309,16 +337,11 @@ def print_board(s, board):
     # print the horizontal numbers
     line = "   "
     for i in range(10):
-        line += str(i + 1) + " "
+        line += str(i) + " "
     print(line)
 
     for i in range(10):
-        line = ""
-        # print the vertical line number
-        if i != 9:
-            line += str(i + 1) + "  "
-        else:
-            line += str(i + 1) + " "
+        line = str(i) + "  "
 
         # print the board values, and cell dividers
         for j in range(10):
@@ -415,9 +438,9 @@ def check_win(board):
     # if any cell contains a char that is not a hit or a miss return false
     for i in range(10):
         for j in range(10):
-            if board[i][j] != -1 and board[i][j] != '*' and board[i][j] != '$':
-                return False
-    return True
+            if board[i][j] != 1:
+                return True
+    return False
 
 
 # if __name__ == "__main__":
