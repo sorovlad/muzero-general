@@ -5,6 +5,8 @@ import datetime
 import os
 
 # import numpy
+from enum import Enum
+
 import torch
 
 from .abstract_game import AbstractGame
@@ -137,7 +139,7 @@ class Game(AbstractGame):
             The new observation, the reward and a boolean if the game has ended.
         """
         observation, reward, done = self.env.step(action)
-        return observation, reward * 10, done
+        return observation, reward, done
 
     def to_play(self):
         """
@@ -202,6 +204,11 @@ class Game(AbstractGame):
         """
         return f"{action_number}"
 
+class Board(Enum):
+    Empty = 0
+    Ship = 1
+    Hit = 2
+    Miss = 3
 
 class Battlefield:
     def __init__(self, seed):
@@ -220,7 +227,7 @@ class Battlefield:
         for i in range(10):
             board_row = []
             for j in range(10):
-                board_row.append(-1)
+                board_row.append(Board.Empty)
             board.append(board_row)
 
         # # add ships as last element in the array
@@ -251,11 +258,11 @@ class Battlefield:
         res = make_move(board, x, y)
         if res == "hit":
             # print("Hit at " + str(x + 1) + "," + str(y + 1))
-            board[x][y] = 2
+            board[x][y] = Board.Hit
             # self.check_ship_destroyed(board, x, y)
         elif res == "miss":
             # print("Sorry, " + str(x + 1) + "," + str(y + 1) + " is a miss.")
-            board[x][y] = 3
+            board[x][y] = Board.Miss
             if self.player == 1:
                 self.player = 0
             else:
@@ -283,19 +290,19 @@ class Battlefield:
         destroyed_ships = 0
         for i in range(10):
             for j in range(10):
-                if board[i][j] == 2:
+                if board[i][j] == Board.Hit:
                     destroyed_ships += 1
-        return destroyed_ships / (4 + 3 * 2 + 2 * 3 + 4)
+        return destroyed_ships
 
-    def check_ship_destroyed(self, board, x, y):
-        if x > 0 and board[x - 1][y] == 1:
-            return False
-        if x < 9 and board[x + 1][y] == 1:
-            return False
-        if y > 0 and board[x][y - 1] == 1:
-            return False
-        if y < 9 and board[x][y + 1] == 1:
-            return False
+    # def check_ship_destroyed(self, board, x, y):
+    #     if x > 0 and board[x - 1][y] == 1:
+    #         return False
+    #     if x < 9 and board[x + 1][y] == 1:
+    #         return False
+    #     if y > 0 and board[x][y - 1] == 1:
+    #         return False
+    #     if y < 9 and board[x][y + 1] == 1:
+    #         return False
 
         # ship_points = self.get_near_ship_points(board, x, y)
 
@@ -345,13 +352,13 @@ def print_board(s, board):
 
         # print the board values, and cell dividers
         for j in range(10):
-            if board[i][j] == -1:
+            if board[i][j] == Board.Empty:
                 line += '0'
-            elif board[i][j] == 1:
+            elif board[i][j] == Board.Ship:
                 line += "1"
-            elif board[i][j] == 2:
+            elif board[i][j] == Board.Hit:
                 line += "#"
-            elif board[i][j] == 3:
+            elif board[i][j] == Board.Miss:
                 line += "*"
             else:
                 line += " "
@@ -388,10 +395,10 @@ def place_ship(board, ship, ori, x, y):
     # place ship based on orientation
     if ori == "v":
         for i in range(ship):
-            board[x + i][y] = 1
+            board[x + i][y] = Board.Ship
     elif ori == "h":
         for i in range(ship):
-            board[x][y + i] = 1
+            board[x][y + i] = Board.Ship
 
     return board
 
@@ -418,16 +425,16 @@ def validate(board, ship, x, y, ori):
 def check_point(board, x, y):
     for i in range(max(0, x - 1), min(x + 2, 10)):
         for j in range(max(0, y - 1), min(y + 2, 10)):
-            if board[i][j] == 1:
+            if board[i][j] == Board.Ship:
                 return True
     return False
 
 
 def make_move(board, x, y):
     # make a move on the board and return the result, hit, miss or try again for repeat hit
-    if board[x][y] == -1:
+    if board[x][y] == Board.Empty:
         return "miss"
-    elif board[x][y] == 1:
+    elif board[x][y] == Board.Ship:
         return "hit"
     else:
         return "try again"
@@ -438,7 +445,8 @@ def check_win(board):
     # if any cell contains a char that is not a hit or a miss return false
     for i in range(10):
         for j in range(10):
-            if board[i][j] != 1:
+            if board[i][j] != Board.Ship:
+                print("Win!")
                 return True
     return False
 
