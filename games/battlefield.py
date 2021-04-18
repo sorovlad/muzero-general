@@ -210,8 +210,12 @@ class Board(Enum):
     Hit = 2
     Miss = 3
 
+game_count = 0
+
 class Battlefield:
     def __init__(self, seed):
+        global game_count
+        print("Start game", game_count)
         # self.random = numpy.random.RandomState(seed)
         self.player = 1
         self.user_board = self.get_battlefield()
@@ -223,6 +227,7 @@ class Battlefield:
         ships = [1, 1, 1, 1, 2, 2, 2, 3, 3, 4]
 
         # setup blank 10x10 board
+        # board = numpy.zeros((10, 10), dtype="int32")
         board = []
         for i in range(10):
             board_row = []
@@ -242,6 +247,9 @@ class Battlefield:
         return list(range(100))
 
     def reset(self):
+        global game_count
+        print("Reset game", game_count)
+        game_count = game_count + 1
         self.player = 1
         self.user_board = self.get_battlefield()
         self.comp_board = self.get_battlefield()
@@ -292,6 +300,7 @@ class Battlefield:
             for j in range(10):
                 if board[i][j] == Board.Hit:
                     destroyed_ships += 1
+        print("get_reward", destroyed_ships)
         return destroyed_ships
 
     # def check_ship_destroyed(self, board, x, y):
@@ -446,7 +455,6 @@ def check_win(board):
     for i in range(10):
         for j in range(10):
             if board[i][j] != Board.Ship:
-                print("Win!")
                 return True
     return False
 
