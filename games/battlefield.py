@@ -32,7 +32,7 @@ class MuZeroConfig:
         ### Self-Play
         self.num_workers = 128  # Number of simultaneous threads/workers self-playing to feed the replay buffer
         self.selfplay_on_gpu = False
-        self.max_moves = 1000  # Maximum number of moves if game is not finished before
+        self.max_moves = 500  # Maximum number of moves if game is not finished before
         self.num_simulations = 1  # Number of future moves self-simulated
         self.discount = 1  # Chronological discount of the reward
         self.temperature_threshold = None  # Number of moves before dropping the temperature given by visit_softmax_temperature_fn to 0 (ie selecting the best action). If None, visit_softmax_temperature_fn is used every time
@@ -184,18 +184,26 @@ class Game(AbstractGame):
         For multiplayer games, ask the user for a legal action
         and return the corresponding action number.
 
+
+
         Returns:
             An integer from the action space.
         """
+
+        player = "Computer"
+        if self.env.player == 1:
+            player = "User"
+        print(player + " step.")
+
         if self.env.stage == Stage_Arrangement:
-            if self.env.ship_size is not None:
-                choice = input("Enter ship size(x: 1,2,3,4) and horizontal or vertical(x: 0,1), format: [xy]")
+            if self.env.ship_size is None:
+                choice = input("Enter ship size(s: 1,2,3,4) and horizontal or vertical(p: 0,1), format: [sp]")
                 return int(choice)
             else:
-                choice = input("Enter ship position: [from 0 to 99]")
+                choice = input("Enter ship position(0-99), format: [yx]")
                 return int(choice)
 
-        choice = input("Enter shooting coordinate [from 0 to 99]")
+        choice = input("Enter shooting coordinate(0-99), format: [yx]")
         return int(choice)
         # while choice not in [str(action) for action in self.legal_actions()]:
         #     choice = input("Enter the coordinate of field(from 0 to 99)")
@@ -301,9 +309,19 @@ class Battlefield:
         if action == 100:
             if self.player == 1:
                 self.user_board = self.place_ships(self.user_board)
+                self.player_ship_1 = 0
+                self.player_ship_2 = 0
+                self.player_ship_3 = 0
+                self.player_ship_4 = 0
+
                 self.player = 0
             else:
                 self.comp_board = self.place_ships(self.comp_board)
+                self.comp_ship_1 = 0
+                self.comp_ship_2 = 0
+                self.comp_ship_3 = 0
+                self.comp_ship_4 = 0
+
                 self.player = 1
             if self.get_player_placed_ships() == 0 and self.get_comp_placed_ships() == 0:
                 self.stage = Stage_Shooting
@@ -320,7 +338,7 @@ class Battlefield:
                 ori = "v"
 
             if self.player == 1:
-                valid = validate(self.user_board, self.user_board, x, y, ori)
+                valid = validate(self.user_board, self.ship_size, x, y, ori)
                 if valid:
                     self.user_board = place_ship(self.user_board, self.ship_size, ori, x, y)
                 else:
@@ -328,7 +346,7 @@ class Battlefield:
                 if self.get_player_placed_ships() == 0:
                     self.player = 0
             else:
-                valid = validate(self.comp_board, self.comp_board, x, y, ori)
+                valid = validate(self.comp_board, self.ship_size, x, y, ori)
                 if valid:
                     self.comp_board = place_ship(self.comp_board, self.ship_size, ori, x, y)
                 else:
@@ -349,7 +367,7 @@ class Battlefield:
 
             x = int(action / 10)
             y = action % 10
-            if y != 0 or y != 1:
+            if y != 0 and y != 1:
                 return
 
             if self.player:
@@ -376,7 +394,7 @@ class Battlefield:
                     return
 
             self.ship_size = x
-            self.is_horizontal = y == 1
+            self.is_horizontal = y == 0
 
     def step(self, action):
         if self.stage == Stage_Arrangement:
@@ -411,8 +429,15 @@ class Battlefield:
         return self.get_observation(), self.get_reward(self.player), done
 
     def get_observation(self):
-        user_board = numpy.full((10, 10), self.user_board, dtype="int32")
-        comp_board = numpy.full((10, 10), self.comp_board, dtype="int32")
+        if self.player == 1:
+            user_board = self.user_board
+            comp_board = hide_ships(self.comp_board)
+        else:
+            comp_board = self.comp_board
+            user_board = hide_ships(self.user_board)
+
+        user_board = numpy.full((10, 10), user_board, dtype="int32")
+        comp_board = numpy.full((10, 10), comp_board, dtype="int32")
 
         return numpy.array([
             user_board,
@@ -429,6 +454,8 @@ class Battlefield:
         for i in range(10):
             for j in range(10):
                 if board[i][j] == Board_Hit:
+                    destroyed_ships += 2
+                if board[i][j] == Board_Ship:
                     destroyed_ships += 1
 
         return destroyed_ships
@@ -444,7 +471,6 @@ class Battlefield:
     #         return False
 
         # ship_points = self.get_near_ship_points(board, x, y)
-
 
     # def get_near_ship_points(self, board, x, y):
     #     ship_points = [[x, y]]
@@ -464,11 +490,24 @@ class Battlefield:
         return self.player
 
     def render(self):
-        print_board("u", self.user_board)
-        print_board("c", self.comp_board)
+        print_board("u", self.user_board, self.player == 1)
+        print_board("c", self.comp_board, self.player == 0)
 
 
-def print_board(s, board):
+def hide_ships(board):
+    without_ships = []
+    for i in range(10):
+        board_row = []
+        for j in range(10):
+            if board[i][j] == Board_Ship:
+                board_row.append(Board_Empty)
+            else:
+                board_row.append(board[i][j])
+        without_ships.append(board_row)
+
+    return without_ships
+
+def print_board(s, board, show_ships):
     # WARNING: This function was crafted with a lot of attention. Please be aware that any
     #          modifications to this function will result in a poor output of the board
     #          layout. You have been warn.
@@ -481,7 +520,7 @@ def print_board(s, board):
     print("The " + player + "'s board look like this: \n")
 
     # print the horizontal numbers
-    line = "   "
+    line = "y x"
     for i in range(10):
         line += str(i) + " "
     print(line)
@@ -494,7 +533,7 @@ def print_board(s, board):
             if board[i][j] == Board_Empty:
                 line += '0'
             elif board[i][j] == Board_Ship:
-                line += "1"
+                line += "1" if show_ships else "0"
             elif board[i][j] == Board_Hit:
                 line += "#"
             elif board[i][j] == Board_Miss:
@@ -584,7 +623,7 @@ def check_win(board):
     # if any cell contains a char that is not a hit or a miss return false
     for i in range(10):
         for j in range(10):
-            if board[i][j] != Board_Ship:
+            if board[i][j] == Board_Ship:
                 return False
     return True
 
