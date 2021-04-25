@@ -597,7 +597,7 @@ if __name__ == "__main__":
         muzero = MuZero(sys.argv[1])
         muzero.train()
     else:
-        print("\nWelcome to MuZero! Here's a list of games:")
+        # print("\nWelcome to MuZero! Here's a list of games:")
         # Let user pick a game
         games = [
             filename[:-3]
@@ -606,9 +606,10 @@ if __name__ == "__main__":
             )
             if filename.endswith(".py") and filename != "abstract_game.py"
         ]
-        for i in range(len(games)):
-            print(f"{i}. {games[i]}")
-        choice = input("Enter a number to choose the game: ")
+        # for i in range(len(games)):
+        #     print(f"{i}. {games[i]}")
+        # choice = input("Enter a number to choose the game: ")
+        choice = 1
         valid_inputs = [str(i) for i in range(len(games))]
         while choice not in valid_inputs:
             choice = input("Invalid input, enter a number listed above: ")
