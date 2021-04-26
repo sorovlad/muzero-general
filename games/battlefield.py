@@ -30,10 +30,10 @@ class MuZeroConfig:
         self.opponent = "random"  # Hard coded agent that MuZero faces to assess his progress in multiplayer games. It doesn't influence training. None, "random" or "expert" if implemented in the Game class
 
         ### Self-Play
-        self.num_workers = 128  # Number of simultaneous threads/workers self-playing to feed the replay buffer
+        self.num_workers = 32  # Number of simultaneous threads/workers self-playing to feed the replay buffer
         self.selfplay_on_gpu = False
         self.max_moves = 500  # Maximum number of moves if game is not finished before
-        self.num_simulations = 1  # Number of future moves self-simulated
+        self.num_simulations = 2  # Number of future moves self-simulated
         self.discount = 1  # Chronological discount of the reward
         self.temperature_threshold = None  # Number of moves before dropping the temperature given by visit_softmax_temperature_fn to 0 (ie selecting the best action). If None, visit_softmax_temperature_fn is used every time
 
@@ -412,7 +412,8 @@ class Battlefield:
         if res == "hit":
             # print("Hit at " + str(x + 1) + "," + str(y + 1))
             board[x][y] = Board_Hit
-            # self.check_ship_destroyed(board, x, y)
+
+            board = self.check_ship_destroyed(board, x, y)
         elif res == "miss":
             # print("Sorry, " + str(x + 1) + "," + str(y + 1) + " is a miss.")
             board[x][y] = Board_Miss
@@ -460,17 +461,64 @@ class Battlefield:
 
         return destroyed_ships
 
-    # def check_ship_destroyed(self, board, x, y):
-    #     if x > 0 and board[x - 1][y] == 1:
-    #         return False
-    #     if x < 9 and board[x + 1][y] == 1:
-    #         return False
-    #     if y > 0 and board[x][y - 1] == 1:
-    #         return False
-    #     if y < 9 and board[x][y + 1] == 1:
-    #         return False
+    def check_ship_destroyed(self, board, x, y):
+        top = self.get_top_ship(board, x, y)
+        bottom = self.get_bottom_ship(board, x, y)
+        left = self.get_left_ship(board, x, y)
+        right = self.get_right_ship(board, x, y)
 
-        # ship_points = self.get_near_ship_points(board, x, y)
+        if top is None or bottom is None or left is None or right is None:
+            return board
+        ship_x = x - left
+        ship_y = y - top
+        horizontal = 1 + left + right
+        vertical = 1 + top + bottom
+
+        for i in range(max(ship_x - 1, 0), min(ship_x + horizontal + 1, 10)):
+            for j in range(max(ship_y - 1, 0), min(ship_x + vertical + 1, 10)):
+                if board[i][j] == Board_Empty:
+                    board[i][j] = Board_Miss
+        return board
+
+    def get_top_ship(self, board, x, y):
+        if y == 0 or board[x][y - 1] == Board_Empty or board[x][y - 1] == Board_Miss:
+            return 0
+        if board[x][y - 1] == Board_Hit:
+            top = self.get_top_ship(board, x, y - 1)
+            if top is None:
+                return None
+            return 1 + top
+        return None
+
+    def get_bottom_ship(self, board, x, y):
+        if y == 9 or board[x][y + 1] == Board_Empty or board[x][y + 1] == Board_Miss:
+            return 0
+        if board[x][y + 1] == Board_Hit:
+            bottom = self.get_top_ship(board, x, y + 1)
+            if bottom is None:
+                return None
+            return 1 + bottom
+        return None
+
+    def get_left_ship(self, board, x, y):
+        if x == 0 or board[x - 1][y] == Board_Empty or board[x - 1][y] == Board_Miss:
+            return 0
+        if board[x - 1][y] == Board_Hit:
+            top = self.get_top_ship(board, x - 1, y)
+            if top is None:
+                return None
+            return 1 + top
+        return None
+
+    def get_right_ship(self, board, x, y):
+        if x == 9 or board[x + 1][y] == Board_Empty or board[x + 1][y] == Board_Miss:
+            return 0
+        if board[x + 1][y] == Board_Hit:
+            bottom = self.get_top_ship(board, x + 1, y)
+            if bottom is None:
+                return None
+            return 1 + bottom
+        return None
 
     # def get_near_ship_points(self, board, x, y):
     #     ship_points = [[x, y]]
