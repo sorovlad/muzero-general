@@ -15,9 +15,9 @@ class SharedStorage:
         self.config = config
         self.current_checkpoint = copy.deepcopy(checkpoint)
 
-    def save_checkpoint(self, path=None):
+    def save_checkpoint(self, path, training_step):
         if not path:
-            path = os.path.join(self.config.results_path, "model.checkpoint")
+            path = os.path.join(self.config.results_path, "model.checkpoint-step-" + str(training_step))
 
         torch.save(self.current_checkpoint, path)
 

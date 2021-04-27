@@ -94,7 +94,7 @@ class Trainer:
                     }
                 )
                 if self.config.save_model:
-                    shared_storage.save_checkpoint.remote()
+                    shared_storage.save_checkpoint.remote(None, self.training_step)
             shared_storage.set_info.remote(
                 {
                     "training_step": self.training_step,

@@ -30,10 +30,10 @@ class MuZeroConfig:
         self.opponent = "random"  # Hard coded agent that MuZero faces to assess his progress in multiplayer games. It doesn't influence training. None, "random" or "expert" if implemented in the Game class
 
         ### Self-Play
-        self.num_workers = 32  # Number of simultaneous threads/workers self-playing to feed the replay buffer
+        self.num_workers = 4  # Number of simultaneous threads/workers self-playing to feed the replay buffer
         self.selfplay_on_gpu = False
-        self.max_moves = 500  # Maximum number of moves if game is not finished before
-        self.num_simulations = 2  # Number of future moves self-simulated
+        self.max_moves = 1000  # Maximum number of moves if game is not finished before
+        self.num_simulations = 10  # Number of future moves self-simulated
         self.discount = 1  # Chronological discount of the reward
         self.temperature_threshold = None  # Number of moves before dropping the temperature given by visit_softmax_temperature_fn to 0 (ie selecting the best action). If None, visit_softmax_temperature_fn is used every time
 
@@ -250,6 +250,8 @@ class Battlefield:
         self.ship_size = None
         self.is_horizontal = None
 
+        self.opponent_view = False
+
     @staticmethod
     def legal_actions():
         # 0 - 99 Координаты
@@ -397,6 +399,10 @@ class Battlefield:
             self.is_horizontal = y == 0
 
     def step(self, action):
+        if action == 101:
+            self.opponent_view = True
+            return self.get_observation(), self.get_reward(self.player), False
+
         if self.stage == Stage_Arrangement:
             self.set_ships(action)
             return self.get_observation(), self.get_reward(self.player), False
@@ -469,13 +475,9 @@ class Battlefield:
 
         if top is None or bottom is None or left is None or right is None:
             return board
-        ship_x = x - left
-        ship_y = y - top
-        horizontal = 1 + left + right
-        vertical = 1 + top + bottom
 
-        for i in range(max(ship_x - 1, 0), min(ship_x + horizontal + 1, 10)):
-            for j in range(max(ship_y - 1, 0), min(ship_x + vertical + 1, 10)):
+        for i in range(max(x - left - 1, 0), min(x + right + 1 + 1, 10)):
+            for j in range(max(y - top - 1, 0), min(y + bottom + 1 + 1, 10)):
                 if board[i][j] == Board_Empty:
                     board[i][j] = Board_Miss
         return board
@@ -538,8 +540,8 @@ class Battlefield:
         return self.player
 
     def render(self):
-        print_board("u", self.user_board, self.player == 1)
-        print_board("c", self.comp_board, self.player == 0)
+        print_board("u", self.user_board, self.opponent_view or self.player == 1)
+        print_board("c", self.comp_board, self.opponent_view or self.player == 0)
 
 
 def hide_ships(board):
