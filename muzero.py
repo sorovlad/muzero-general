@@ -586,6 +586,7 @@ def load_model_menu(muzero, game_name):
         checkpoint_path = f"{options[choice]}model.checkpoint"
         replay_buffer_path = f"{options[choice]}replay_buffer.pkl"
 
+
     muzero.load_model(
         checkpoint_path=checkpoint_path, replay_buffer_path=replay_buffer_path,
     )
