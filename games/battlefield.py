@@ -20,7 +20,7 @@ class MuZeroConfig:
         self.max_num_gpus = None  # Fix the maximum number of GPUs to use. It's usually faster to use a single GPU (set it to 1) if it has enough memory. None will use every GPUs available
 
         ### Game
-        self.observation_shape = (2, 10, 10)  # Dimensions of the game observation, must be 3D (channel, height, width). For a 1D array, please reshape it to (1, 1, length of array)
+        self.observation_shape = (3, 10, 10)  # Dimensions of the game observation, must be 3D (channel, height, width). For a 1D array, please reshape it to (1, 1, length of array)
         self.action_space = list(range(100))  # Fixed list of all possible actions. You should only edit the length
         self.players = list(range(2))  # List of players. You should only edit the length
         self.stacked_observations = 0  # Number of previous observations and previous actions to add to the current observation
@@ -73,9 +73,9 @@ class MuZeroConfig:
                                          os.path.basename(__file__)[:-3], datetime.datetime.now().strftime(
                 "%Y-%m-%d--%H-%M-%S"))  # Path to store the model weights and TensorBoard logs
         self.save_model = True  # Save the checkpoint in results_path as model.checkpoint
-        self.training_steps = 1500  # Total number of training steps (ie weights update according to a batch)
+        self.training_steps = 100  # Total number of training steps (ie weights update according to a batch)
         self.batch_size = 64  # Number of parts of games to train on at each training step
-        self.checkpoint_interval = 10  # Number of training steps before using the model for self-playing
+        self.checkpoint_interval = 100  # Number of training steps before using the model for self-playing
         self.value_loss_weight = 0.25  # Scale the value loss to avoid overfitting of the value function, paper recommends 0.25 (See paper appendix Reanalyze)
         self.train_on_gpu = torch.cuda.is_available()  # Train on GPU if available
 
@@ -328,7 +328,7 @@ class Battlefield:
             if self.get_player_placed_ships() == 0 and self.get_comp_placed_ships() == 0:
                 self.stage = Stage_Shooting
 
-            return
+            return True
 
         if self.ship_size is not None:
             x = int(action / 10)
@@ -344,7 +344,7 @@ class Battlefield:
                 if valid:
                     self.user_board = place_ship(self.user_board, self.ship_size, ori, x, y)
                 else:
-                    return
+                    return False
                 if self.get_player_placed_ships() == 0:
                     self.player = 0
             else:
@@ -352,7 +352,7 @@ class Battlefield:
                 if valid:
                     self.comp_board = place_ship(self.comp_board, self.ship_size, ori, x, y)
                 else:
-                    return
+                    return False
                 if self.get_comp_placed_ships() == 0:
                     self.player = 1
 
@@ -370,9 +370,9 @@ class Battlefield:
             x = int(action / 10)
             y = action % 10
             if y != 0 and y != 1:
-                return
+                return False
 
-            if self.player:
+            if self.player == 1:
                 if x == 1 and self.player_ship_1 > 0:
                     self.player_ship_1 -= 1
                 elif x == 2 and self.player_ship_2 > 0:
@@ -382,7 +382,7 @@ class Battlefield:
                 elif x == 4 and self.player_ship_4 > 0:
                     self.player_ship_4 -= 1
                 else:
-                    return
+                    return False
             else:
                 if x == 1 and self.comp_ship_1 > 0:
                     self.comp_ship_1 -= 1
@@ -393,20 +393,22 @@ class Battlefield:
                 elif x == 4 and self.comp_ship_4 > 0:
                     self.comp_ship_4 -= 1
                 else:
-                    return
+                    return False
 
             self.ship_size = x
             self.is_horizontal = y == 0
+        return True
 
     def step(self, action):
         if action == 101:
             self.opponent_view = True
-            return self.get_observation(), self.get_reward(self.player), False
+            return self.get_observation(), 0, False
 
         if self.stage == Stage_Arrangement:
-            self.set_ships(action)
-            return self.get_observation(), self.get_reward(self.player), False
+            reward = 0 if self.set_ships(action) else -1
+            return self.get_observation(), reward, False
 
+        reward = 0
         x = int(action / 10)
         y = action % 10
         if self.player == 1:
@@ -418,22 +420,22 @@ class Battlefield:
         if res == "hit":
             # print("Hit at " + str(x + 1) + "," + str(y + 1))
             board[x][y] = Board_Hit
+            reward = 1
 
             board = self.check_ship_destroyed(board, x, y)
         elif res == "miss":
             # print("Sorry, " + str(x + 1) + "," + str(y + 1) + " is a miss.")
             board[x][y] = Board_Miss
-            if self.player == 1:
-                self.player = 0
-            else:
-                self.player = 1
+            self.player = 0 if self.player == 1 else 1
+        elif res == "try again":
+            reward = -1
 
         # elif res == "try again":
         #     print("Sorry, that coordinate was already hit. Please try again")
 
         done = check_win(board)
         # print("check_win", done, self.get_reward(self.player))
-        return self.get_observation(), self.get_reward(self.player), done
+        return self.get_observation(), reward, done
 
     def get_observation(self):
         if self.player == 1:
@@ -443,29 +445,30 @@ class Battlefield:
             comp_board = self.comp_board
             user_board = hide_ships(self.user_board)
 
-        user_board = numpy.full((10, 10), user_board, dtype="int32")
-        comp_board = numpy.full((10, 10), comp_board, dtype="int32")
+        # user_board = numpy.full((10, 10), user_board, dtype="float32")
+        # comp_board = numpy.full((10, 10), comp_board, dtype="float32")
 
         return numpy.array([
+            numpy.full((10, 10), self.stage, dtype="float32"),
             user_board,
             comp_board,
         ])
 
-    def get_reward(self, player):
-        if player == 1:
-            board = self.comp_board
-        else:
-            board = self.user_board
-
-        destroyed_ships = 0
-        for i in range(10):
-            for j in range(10):
-                if board[i][j] == Board_Hit:
-                    destroyed_ships += 2
-                if board[i][j] == Board_Ship:
-                    destroyed_ships += 1
-
-        return destroyed_ships
+    # def get_reward(self, player):
+    #     if player == 1:
+    #         board = self.comp_board
+    #     else:
+    #         board = self.user_board
+    #
+    #     destroyed_ships = 0
+    #     for i in range(10):
+    #         for j in range(10):
+    #             if board[i][j] == Board_Hit:
+    #                 destroyed_ships += 2
+    #             if board[i][j] == Board_Ship:
+    #                 destroyed_ships += 1
+    #
+    #     return destroyed_ships
 
     def check_ship_destroyed(self, board, x, y):
         top = self.get_top_ship(board, x, y)
