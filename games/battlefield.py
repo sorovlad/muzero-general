@@ -27,12 +27,12 @@ class MuZeroConfig:
 
         # Evaluate
         self.muzero_player = 0  # Turn Muzero begins to play (0: MuZero plays first, 1: MuZero plays second)
-        self.opponent = "random"  # Hard coded agent that MuZero faces to assess his progress in multiplayer games. It doesn't influence training. None, "random" or "expert" if implemented in the Game class
+        self.opponent = "expert"  # Hard coded agent that MuZero faces to assess his progress in multiplayer games. It doesn't influence training. None, "random" or "expert" if implemented in the Game class
 
         ### Self-Play
         self.num_workers = 4  # Number of simultaneous threads/workers self-playing to feed the replay buffer
         self.selfplay_on_gpu = False
-        self.max_moves = 2000  # Maximum number of moves if game is not finished before
+        self.max_moves = 5000  # Maximum number of moves if game is not finished before
         self.num_simulations = 10  # Number of future moves self-simulated
         self.discount = 1  # Chronological discount of the reward
         self.temperature_threshold = None  # Number of moves before dropping the temperature given by visit_softmax_temperature_fn to 0 (ie selecting the best action). If None, visit_softmax_temperature_fn is used every time
@@ -73,7 +73,7 @@ class MuZeroConfig:
                                          os.path.basename(__file__)[:-3], datetime.datetime.now().strftime(
                 "%Y-%m-%d--%H-%M-%S"))  # Path to store the model weights and TensorBoard logs
         self.save_model = True  # Save the checkpoint in results_path as model.checkpoint
-        self.training_steps = 300  # Total number of training steps (ie weights update according to a batch)
+        self.training_steps = 500  # Total number of training steps (ie weights update according to a batch)
         self.batch_size = 64  # Number of parts of games to train on at each training step
         self.checkpoint_interval = 20  # Number of training steps before using the model for self-playing
         self.value_loss_weight = 0.25  # Scale the value loss to avoid overfitting of the value function, paper recommends 0.25 (See paper appendix Reanalyze)
@@ -415,7 +415,7 @@ class Battlefield:
             return self.get_observation(), 0, False
 
         if self.stage == Stage_Arrangement:
-            reward = 0 if self.set_ships(action) else -1
+            reward = 1 if self.set_ships(action) else -1
             return self.get_observation(), reward, False
 
         reward = 0
@@ -430,9 +430,9 @@ class Battlefield:
         if res == "hit":
             # print("Hit at " + str(x + 1) + "," + str(y + 1))
             board[x][y] = Board_Hit
-            reward = 1
 
-            board = self.check_ship_destroyed(board, x, y)
+            board, destroyed = self.check_ship_destroyed(board, x, y)
+            reward = 10 if destroyed else 1
         elif res == "miss":
             # print("Sorry, " + str(x + 1) + "," + str(y + 1) + " is a miss.")
             board[x][y] = Board_Miss
@@ -446,7 +446,8 @@ class Battlefield:
         done = check_win(board)
         # print("check_win", done, self.get_reward(self.player))
         if done:
-            print("WIN:" + ("Player" if self.player == 1 else "MuZero"))
+            reward = 100
+            # print("WIN:" + ("Player" if self.player == 1 else "MuZero"))
             # self.render()
 
         return self.get_observation(), reward, done
@@ -491,13 +492,13 @@ class Battlefield:
         right = self.get_right_ship(board, x, y)
 
         if top is None or bottom is None or left is None or right is None:
-            return board
+            return board, False
 
         for i in range(max(x - left - 1, 0), min(x + right + 1 + 1, 10)):
             for j in range(max(y - top - 1, 0), min(y + bottom + 1 + 1, 10)):
                 if board[i][j] == Board_Empty:
                     board[i][j] = Board_Miss
-        return board
+        return board, True
 
     def get_top_ship(self, board, x, y):
         if y == 0 or board[x][y - 1] == Board_Empty or board[x][y - 1] == Board_Miss:

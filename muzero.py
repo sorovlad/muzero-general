@@ -393,6 +393,8 @@ class MuZero:
                     for history in results
                 ]
             )
+        print("result:")
+        print(str(result))
         return result
 
     def load_model(self, checkpoint_path=None, replay_buffer_path=None):
@@ -632,6 +634,7 @@ if __name__ == "__main__":
                 "Hyperparameter search",
                 "Play against random",
                 "Play against expert",
+                "Play against expert[100]",
                 "Exit",
             ]
             print()
@@ -682,6 +685,8 @@ if __name__ == "__main__":
                 muzero.test(render=False, opponent="random", muzero_player=0, num_tests=100)
             elif choice == 8:
                 muzero.test(render=False, opponent="expert", muzero_player=0, num_tests=1)
+            elif choice == 9:
+                muzero.test(render=False, opponent="expert", muzero_player=0, num_tests=100)
             else:
                 break
             print("\nDone")

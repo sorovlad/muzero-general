@@ -7,3 +7,4 @@ hit = 1
 miss = 0
 can't_hit = -1
 
+max-steps:: 2000
