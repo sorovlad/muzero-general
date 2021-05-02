@@ -630,6 +630,8 @@ if __name__ == "__main__":
                 "Play against MuZero",
                 "Test the game manually",
                 "Hyperparameter search",
+                "Play against random",
+                "Play against expert",
                 "Exit",
             ]
             print()
@@ -676,6 +678,10 @@ if __name__ == "__main__":
                     game_name, parametrization, budget, parallel_experiments, 20
                 )
                 muzero = MuZero(game_name, best_hyperparameters)
+            elif choice == 7:
+                muzero.test(render=False, opponent="random", muzero_player=0, num_tests=100)
+            elif choice == 8:
+                muzero.test(render=False, opponent="expert", muzero_player=0, num_tests=1)
             else:
                 break
             print("\nDone")

@@ -32,7 +32,7 @@ class MuZeroConfig:
         ### Self-Play
         self.num_workers = 4  # Number of simultaneous threads/workers self-playing to feed the replay buffer
         self.selfplay_on_gpu = False
-        self.max_moves = 1000  # Maximum number of moves if game is not finished before
+        self.max_moves = 2000  # Maximum number of moves if game is not finished before
         self.num_simulations = 10  # Number of future moves self-simulated
         self.discount = 1  # Chronological discount of the reward
         self.temperature_threshold = None  # Number of moves before dropping the temperature given by visit_softmax_temperature_fn to 0 (ie selecting the best action). If None, visit_softmax_temperature_fn is used every time
@@ -73,9 +73,9 @@ class MuZeroConfig:
                                          os.path.basename(__file__)[:-3], datetime.datetime.now().strftime(
                 "%Y-%m-%d--%H-%M-%S"))  # Path to store the model weights and TensorBoard logs
         self.save_model = True  # Save the checkpoint in results_path as model.checkpoint
-        self.training_steps = 100  # Total number of training steps (ie weights update according to a batch)
+        self.training_steps = 300  # Total number of training steps (ie weights update according to a batch)
         self.batch_size = 64  # Number of parts of games to train on at each training step
-        self.checkpoint_interval = 100  # Number of training steps before using the model for self-playing
+        self.checkpoint_interval = 20  # Number of training steps before using the model for self-playing
         self.value_loss_weight = 0.25  # Scale the value loss to avoid overfitting of the value function, paper recommends 0.25 (See paper appendix Reanalyze)
         self.train_on_gpu = torch.cuda.is_available()  # Train on GPU if available
 
@@ -207,6 +207,16 @@ class Game(AbstractGame):
         return int(choice)
         # while choice not in [str(action) for action in self.legal_actions()]:
         #     choice = input("Enter the coordinate of field(from 0 to 99)")
+
+    def expert_agent(self):
+        """
+        Hard coded agent that MuZero faces to assess his progress in multiplayer games.
+        It doesn't influence training
+
+        Returns:
+            Action as an integer to take in the current game state
+        """
+        return self.env.expert_action()
 
     def action_to_string(self, action_number):
         """
@@ -435,6 +445,10 @@ class Battlefield:
 
         done = check_win(board)
         # print("check_win", done, self.get_reward(self.player))
+        if done:
+            print("WIN:" + ("Player" if self.player == 1 else "MuZero"))
+            # self.render()
+
         return self.get_observation(), reward, done
 
     def get_observation(self):
@@ -499,7 +513,7 @@ class Battlefield:
         if y == 9 or board[x][y + 1] == Board_Empty or board[x][y + 1] == Board_Miss:
             return 0
         if board[x][y + 1] == Board_Hit:
-            bottom = self.get_top_ship(board, x, y + 1)
+            bottom = self.get_bottom_ship(board, x, y + 1)
             if bottom is None:
                 return None
             return 1 + bottom
@@ -509,7 +523,7 @@ class Battlefield:
         if x == 0 or board[x - 1][y] == Board_Empty or board[x - 1][y] == Board_Miss:
             return 0
         if board[x - 1][y] == Board_Hit:
-            top = self.get_top_ship(board, x - 1, y)
+            top = self.get_left_ship(board, x - 1, y)
             if top is None:
                 return None
             return 1 + top
@@ -519,7 +533,7 @@ class Battlefield:
         if x == 9 or board[x + 1][y] == Board_Empty or board[x + 1][y] == Board_Miss:
             return 0
         if board[x + 1][y] == Board_Hit:
-            bottom = self.get_top_ship(board, x + 1, y)
+            bottom = self.get_right_ship(board, x + 1, y)
             if bottom is None:
                 return None
             return 1 + bottom
@@ -541,6 +555,25 @@ class Battlefield:
 
     def to_play(self):
         return self.player
+
+    def expert_action(self):
+        if self.stage == Stage_Arrangement:
+            return 100
+        board = self.comp_board
+
+        # print_board("u", board, True)
+        points = []
+
+        for i in range(10):
+            for j in range(10):
+                if board[i][j] == Board_Empty or board[i][j] == Board_Ship:
+                    points.append(i * 10 + j)
+        next_point = random.choice(points)
+        # print(str(points))
+        # print("nextPoint")
+        # print(str(next_point))
+
+        return next_point
 
     def render(self):
         print_board("u", self.user_board, self.opponent_view or self.player == 1)
@@ -570,7 +603,7 @@ def print_board(s, board, show_ships):
     if s == "u":
         player = "User"
 
-    print("The " + player + "'s board look like this: \n")
+    print("\nThe " + player + "'s board look like this:")
 
     # print the horizontal numbers
     line = "y x"

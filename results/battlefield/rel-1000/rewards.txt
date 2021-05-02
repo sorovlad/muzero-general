@@ -1,0 +1,9 @@
+select_ship = 0
+set_ship = 0
+can't_select_ship = -1
+can't_set_ship = -1
+
+hit = 1
+miss = 0
+can't_hit = -1
+
