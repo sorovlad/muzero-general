@@ -33,7 +33,7 @@ class MuZeroConfig:
         self.num_workers = 4  # Number of simultaneous threads/workers self-playing to feed the replay buffer
         self.selfplay_on_gpu = False
         self.max_moves = 5000  # Maximum number of moves if game is not finished before
-        self.num_simulations = 10  # Number of future moves self-simulated
+        self.num_simulations = 100  # Number of future moves self-simulated
         self.discount = 1  # Chronological discount of the reward
         self.temperature_threshold = None  # Number of moves before dropping the temperature given by visit_softmax_temperature_fn to 0 (ie selecting the best action). If None, visit_softmax_temperature_fn is used every time
 
@@ -73,8 +73,8 @@ class MuZeroConfig:
                                          os.path.basename(__file__)[:-3], datetime.datetime.now().strftime(
                 "%Y-%m-%d--%H-%M-%S"))  # Path to store the model weights and TensorBoard logs
         self.save_model = True  # Save the checkpoint in results_path as model.checkpoint
-        self.training_steps = 500  # Total number of training steps (ie weights update according to a batch)
-        self.batch_size = 64  # Number of parts of games to train on at each training step
+        self.training_steps = 100  # Total number of training steps (ie weights update according to a batch)
+        self.batch_size = 128  # Number of parts of games to train on at each training step
         self.checkpoint_interval = 20  # Number of training steps before using the model for self-playing
         self.value_loss_weight = 0.25  # Scale the value loss to avoid overfitting of the value function, paper recommends 0.25 (See paper appendix Reanalyze)
         self.train_on_gpu = torch.cuda.is_available()  # Train on GPU if available
@@ -415,7 +415,7 @@ class Battlefield:
             return self.get_observation(), 0, False
 
         if self.stage == Stage_Arrangement:
-            reward = 1 if self.set_ships(action) else -1
+            reward = 0 if self.set_ships(action) else -1
             return self.get_observation(), reward, False
 
         reward = 0
@@ -432,7 +432,7 @@ class Battlefield:
             board[x][y] = Board_Hit
 
             board, destroyed = self.check_ship_destroyed(board, x, y)
-            reward = 10 if destroyed else 1
+            reward = 2 if destroyed else 1
         elif res == "miss":
             # print("Sorry, " + str(x + 1) + "," + str(y + 1) + " is a miss.")
             board[x][y] = Board_Miss
@@ -445,8 +445,8 @@ class Battlefield:
 
         done = check_win(board)
         # print("check_win", done, self.get_reward(self.player))
-        if done:
-            reward = 100
+        # if done:
+        #     reward = 100
             # print("WIN:" + ("Player" if self.player == 1 else "MuZero"))
             # self.render()
 
