@@ -30,7 +30,7 @@ class MuZeroConfig:
         self.opponent = "expert"  # Hard coded agent that MuZero faces to assess his progress in multiplayer games. It doesn't influence training. None, "random" or "expert" if implemented in the Game class
 
         ### Self-Play
-        self.num_workers = 8  # Number of simultaneous threads/workers self-playing to feed the replay buffer
+        self.num_workers = 4  # Number of simultaneous threads/workers self-playing to feed the replay buffer
         self.selfplay_on_gpu = False
         self.max_moves = 200  # Maximum number of moves if game is not finished before
         self.num_simulations = 20  # Number of future moves self-simulated
@@ -56,15 +56,15 @@ class MuZeroConfig:
         self.reduced_channels_reward = 2  # Number of channels in reward head
         self.reduced_channels_value = 2  # Number of channels in value head
         self.reduced_channels_policy = 4  # Number of channels in policy head
-        self.resnet_fc_reward_layers = [64]  # Define the hidden layers in the reward head of the dynamic network
-        self.resnet_fc_value_layers = [64]  # Define the hidden layers in the value head of the prediction network
-        self.resnet_fc_policy_layers = [64]  # Define the hidden layers in the policy head of the prediction network
+        self.resnet_fc_reward_layers = [32]  # Define the hidden layers in the reward head of the dynamic network
+        self.resnet_fc_value_layers = [32]  # Define the hidden layers in the value head of the prediction network
+        self.resnet_fc_policy_layers = [32]  # Define the hidden layers in the policy head of the prediction network
 
         # Fully Connected Network
         self.encoding_size = 32
         self.fc_representation_layers = []  # Define the hidden layers in the representation network
-        self.fc_dynamics_layers = [64]  # Define the hidden layers in the dynamics network
-        self.fc_reward_layers = [64]  # Define the hidden layers in the reward network
+        self.fc_dynamics_layers = [32]  # Define the hidden layers in the dynamics network
+        self.fc_reward_layers = [32]  # Define the hidden layers in the reward network
         self.fc_value_layers = []  # Define the hidden layers in the value network
         self.fc_policy_layers = []  # Define the hidden layers in the policy network
 
@@ -257,10 +257,14 @@ class Battlefield:
         self.comp_ship_3 = 2
         self.comp_ship_4 = 1
 
+        self.player_ships = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]
+        self.comp_ships = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]
         self.ship_size = None
         self.is_horizontal = None
 
+
         self.opponent_view = False
+
 
         # self.count_step = 0
 
@@ -290,6 +294,8 @@ class Battlefield:
 
         self.ship_size = None
         self.is_horizontal = None
+        self.player_ships = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]
+        self.comp_ships = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]
 
         return self.get_observation()
 
@@ -563,9 +569,26 @@ class Battlefield:
         return self.player
 
     def expert_action(self):
+        board = self.user_board if self.player == 1 else self.comp_board
+
         if self.stage == Stage_Arrangement:
-            return 100
-        board = self.comp_board
+            if self.ship_size:
+                if self.is_horizontal:
+                    ori = "h"
+                else:
+                    ori = "v"
+                valid = False
+                while (not valid):
+                    x = random.randint(1, 10) - 1
+                    y = random.randint(1, 10) - 1
+                    valid = validate(board, self.ship_size, x, y, ori)
+                return y * 10 + x
+            else:
+                ships = self.player_ships if self.player == 1 else self.comp_ships
+                ship = ships.pop()
+                o = random.randint(0, 1)
+                return ship * 10 + o
+
 
         # print_board("u", board, True)
         points = []
