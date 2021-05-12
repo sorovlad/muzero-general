@@ -20,10 +20,10 @@ class MuZeroConfig:
         self.max_num_gpus = None  # Fix the maximum number of GPUs to use. It's usually faster to use a single GPU (set it to 1) if it has enough memory. None will use every GPUs available
 
         ### Game
-        self.observation_shape = (3, 10, 10)  # Dimensions of the game observation, must be 3D (channel, height, width). For a 1D array, please reshape it to (1, 1, length of array)
+        self.observation_shape = (2, 10, 10)  # Dimensions of the game observation, must be 3D (channel, height, width). For a 1D array, please reshape it to (1, 1, length of array)
         self.action_space = list(range(100))  # Fixed list of all possible actions. You should only edit the length
         self.players = list(range(2))  # List of players. You should only edit the length
-        self.stacked_observations = 1  # Number of previous observations and previous actions to add to the current observation
+        self.stacked_observations = 0  # Number of previous observations and previous actions to add to the current observation
 
         # Evaluate
         self.muzero_player = 0  # Turn Muzero begins to play (0: MuZero plays first, 1: MuZero plays second)
@@ -32,7 +32,7 @@ class MuZeroConfig:
         ### Self-Play
         self.num_workers = 4  # Number of simultaneous threads/workers self-playing to feed the replay buffer
         self.selfplay_on_gpu = False
-        self.max_moves = 240  # Maximum number of moves if game is not finished before
+        self.max_moves = 200  # Maximum number of moves if game is not finished before
         self.num_simulations = 2  # Number of future moves self-simulated
         self.discount = 0.997  # Chronological discount of the reward
         self.temperature_threshold = None  # Number of moves before dropping the temperature given by visit_softmax_temperature_fn to 0 (ie selecting the best action). If None, visit_softmax_temperature_fn is used every time
@@ -243,9 +243,12 @@ class Battlefield:
     def __init__(self, seed):
         # self.random = numpy.random.RandomState(seed)
         self.player = 1
-        self.stage = Stage_Arrangement
-        self.user_board = Battlefield.get_battlefield()
-        self.comp_board = Battlefield.get_battlefield()
+        # self.stage = Stage_Arrangement
+        self.stage = Stage_Shooting
+        # self.user_board = Battlefield.get_battlefield()
+        # self.comp_board = Battlefield.get_battlefield()
+        self.user_board = self.place_ships(Battlefield.get_battlefield())
+        self.comp_board = self.place_ships(Battlefield.get_battlefield())
 
         self.player_ship_1 = 4
         self.player_ship_2 = 3
@@ -278,9 +281,12 @@ class Battlefield:
         # print("Reset game", game_count)
         # game_count = game_count + 1
         self.player = 1
-        self.user_board = Battlefield.get_battlefield()
-        self.comp_board = Battlefield.get_battlefield()
-        self.stage = Stage_Arrangement
+        # self.user_board = Battlefield.get_battlefield()
+        # self.comp_board = Battlefield.get_battlefield()
+        self.user_board = self.place_ships(Battlefield.get_battlefield())
+        self.comp_board = self.place_ships(Battlefield.get_battlefield())
+        # self.stage = Stage_Arrangement
+        self.stage = Stage_Shooting
 
         self.player_ship_1 = 4
         self.player_ship_2 = 3
@@ -422,10 +428,10 @@ class Battlefield:
             self.opponent_view = True
             return self.get_observation(), 0, False
 
-        if self.stage == Stage_Arrangement:
-            # self.count_step += 1
-            reward = 1 if self.set_ships(action) else -1
-            return self.get_observation(), reward, False
+        # if self.stage == Stage_Arrangement:
+        #     # self.count_step += 1
+        #     reward = 1 if self.set_ships(action) else -1
+        #     return self.get_observation(), reward, False
 
         # print("count steps: " + str(self.count_step))
         reward = 0
@@ -474,7 +480,7 @@ class Battlefield:
         # comp_board = numpy.full((10, 10), comp_board, dtype="float32")
 
         return numpy.array([
-            numpy.full((10, 10), self.stage, dtype="float32"),
+            # numpy.full((10, 10), self.stage, dtype="float32"),
             user_board,
             comp_board,
         ])
