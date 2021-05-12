@@ -90,8 +90,8 @@ class MuZeroConfig:
 
         ### Replay Buffer
         self.replay_buffer_size = 3000  # Number of self-play games to keep in the replay buffer
-        self.num_unroll_steps = 200  # Number of game moves to keep for every batch element
-        self.td_steps = 200  # Number of steps in the future to take into account for calculating the target value
+        self.num_unroll_steps = 32  # Number of game moves to keep for every batch element
+        self.td_steps = 10  # Number of steps in the future to take into account for calculating the target value
         self.PER = True  # Prioritized Replay (See paper appendix Training), select in priority the elements in the replay buffer which are unexpected for the network
         self.PER_alpha = 0.5  # How much prioritization is used, 0 corresponding to the uniform case, paper suggests 1
 
@@ -102,7 +102,7 @@ class MuZeroConfig:
         ### Adjust the self play / training ratio to avoid over/underfitting
         self.self_play_delay = 0  # Number of seconds to wait after each played game
         self.training_delay = 0  # Number of seconds to wait after each training step
-        self.ratio = 1  # Desired training steps per self played step ratio. Equivalent to a synchronous version, training can take much longer. Set it to None to disable it
+        self.ratio = None  # Desired training steps per self played step ratio. Equivalent to a synchronous version, training can take much longer. Set it to None to disable it
 
     def visit_softmax_temperature_fn(self, trained_steps):
         """
@@ -264,7 +264,6 @@ class Battlefield:
         self.comp_ships = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]
         self.ship_size = None
         self.is_horizontal = None
-
 
         self.opponent_view = False
 
@@ -470,7 +469,8 @@ class Battlefield:
             board[x][y] = Board_Hit
 
             board, destroyed = self.check_ship_destroyed(board, x, y)
-            reward = 2 if destroyed else 1
+            reward = 1
+            # reward = 2 if destroyed else 1
         elif res == "miss":
             # print("Sorry, " + str(x + 1) + "," + str(y + 1) + " is a miss.")
             board[x][y] = Board_Miss
@@ -482,7 +482,7 @@ class Battlefield:
         #     print("Sorry, that coordinate was already hit. Please try again")
 
         done = check_win(board)
-        reward = 1 if done else 0
+        # reward = 1 if done else 0
         # print("check_win", done, self.get_reward(self.player))
         # if done:
         #     reward = 100
