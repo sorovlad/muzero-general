@@ -33,7 +33,7 @@ class MuZeroConfig:
         self.num_workers = 4  # Number of simultaneous threads/workers self-playing to feed the replay buffer
         self.selfplay_on_gpu = False
         self.max_moves = 200  # Maximum number of moves if game is not finished before
-        self.num_simulations = 2  # Number of future moves self-simulated
+        self.num_simulations = 20  # Number of future moves self-simulated
         self.discount = 0.997  # Chronological discount of the reward
         self.temperature_threshold = None  # Number of moves before dropping the temperature given by visit_softmax_temperature_fn to 0 (ie selecting the best action). If None, visit_softmax_temperature_fn is used every time
 
@@ -51,14 +51,14 @@ class MuZeroConfig:
 
         # Residual Network
         self.downsample = False  # Downsample observations before representation network, False / "CNN" (lighter) / "resnet" (See paper appendix Network Architecture)
-        self.blocks = 2  # Number of blocks in the ResNet
-        self.channels = 32  # Number of channels in the ResNet
+        self.blocks = 6  # Number of blocks in the ResNet
+        self.channels = 64  # Number of channels in the ResNet
         self.reduced_channels_reward = 2  # Number of channels in reward head
         self.reduced_channels_value = 2  # Number of channels in value head
         self.reduced_channels_policy = 4  # Number of channels in policy head
-        self.resnet_fc_reward_layers = [32]  # Define the hidden layers in the reward head of the dynamic network
-        self.resnet_fc_value_layers = [32]  # Define the hidden layers in the value head of the prediction network
-        self.resnet_fc_policy_layers = [32]  # Define the hidden layers in the policy head of the prediction network
+        self.resnet_fc_reward_layers = [64]  # Define the hidden layers in the reward head of the dynamic network
+        self.resnet_fc_value_layers = [64]  # Define the hidden layers in the value head of the prediction network
+        self.resnet_fc_policy_layers = [64]  # Define the hidden layers in the policy head of the prediction network
 
         # Fully Connected Network
         self.encoding_size = 32
@@ -76,7 +76,7 @@ class MuZeroConfig:
         self.training_steps = 1000  # Total number of training steps (ie weights update according to a batch)
         self.batch_size = 128  # Number of parts of games to train on at each training step
         self.checkpoint_interval = 10  # Number of training steps before using the model for self-playing
-        self.value_loss_weight = 1  # Scale the value loss to avoid overfitting of the value function, paper recommends 0.25 (See paper appendix Reanalyze)
+        self.value_loss_weight = 0.25  # Scale the value loss to avoid overfitting of the value function, paper recommends 0.25 (See paper appendix Reanalyze)
         self.train_on_gpu = torch.cuda.is_available()  # Train on GPU if available
 
         self.optimizer = "SGD"  # "Adam" or "SGD". Paper uses SGD
@@ -138,6 +138,8 @@ class Game(AbstractGame):
         Returns:
             The new observation, the reward and a boolean if the game has ended.
         """
+
+        # print("step")
         observation, reward, done = self.env.step(action)
         return observation, reward, done
 
@@ -161,6 +163,8 @@ class Game(AbstractGame):
         Returns:
             An array of integers, subset of the action space.
         """
+
+        # print("legal_actions")
         return self.env.legal_actions()
 
     def reset(self):
@@ -193,7 +197,7 @@ class Game(AbstractGame):
         player = "Computer"
         if self.env.player == 1:
             player = "User"
-        print(player + " step.")
+        # print(player + " step.")
 
         if self.env.stage == Stage_Arrangement:
             if self.env.ship_size is None:
@@ -239,16 +243,20 @@ Board_Miss = 3
 Stage_Arrangement = 0
 Stage_Shooting = 1
 
+
 class Battlefield:
     def __init__(self, seed):
+        # print("init 1")
         self.random = numpy.random.RandomState(seed)
         self.player = 1
         # self.stage = Stage_Arrangement
         self.stage = Stage_Shooting
+        # print("init 2")
         # self.user_board = Battlefield.get_battlefield()
         # self.comp_board = Battlefield.get_battlefield()
         self.user_board = self.place_ships(Battlefield.get_battlefield())
         self.comp_board = self.place_ships(Battlefield.get_battlefield())
+        # print("init 3")
 
         self.player_ship_1 = 4
         self.player_ship_2 = 3
@@ -266,6 +274,8 @@ class Battlefield:
         self.is_horizontal = None
 
         self.opponent_view = False
+        # print("init")
+        # self.render()
 
         # self.count_step = 0
 
@@ -307,6 +317,7 @@ class Battlefield:
         # self.comp_board = Battlefield.get_battlefield()
         self.user_board = self.place_ships(Battlefield.get_battlefield())
         self.comp_board = self.place_ships(Battlefield.get_battlefield())
+
         # self.stage = Stage_Arrangement
         self.stage = Stage_Shooting
 
@@ -324,6 +335,8 @@ class Battlefield:
         self.is_horizontal = None
         self.player_ships = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]
         self.comp_ships = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]
+
+        # self.render()
 
         return self.get_observation()
 
@@ -445,6 +458,7 @@ class Battlefield:
         return True
 
     def step(self, action):
+        # print(str(self.player), str(action))
         if action == 101:
             self.opponent_view = True
             return self.get_observation(), 0, False
@@ -609,16 +623,15 @@ class Battlefield:
                     ori = "v"
                 valid = False
                 while (not valid):
-                    x = self.random.randint(1, 10) - 1
-                    y = self.random.randint(1, 10) - 1
+                    x = self.random.randint(1, 11) - 1
+                    y = self.random.randint(1, 11) - 1
                     valid = validate(board, self.ship_size, x, y, ori)
                 return x * 10 + y
             else:
                 ships = self.player_ships if self.player == 1 else self.comp_ships
                 ship = ships.pop()
-                o = self.random.randint(0, 1)
+                o = self.random.randint(0, 2)
                 return ship * 10 + o
-
 
         # print_board("u", board, True)
         board = self.comp_board if self.player == 1 else self.user_board
@@ -641,9 +654,10 @@ class Battlefield:
             # generate random coordinates and validate the position
             valid = False
             while (not valid):
-                x = self.random.randint(1, 10) - 1
-                y = self.random.randint(1, 10) - 1
-                o = self.random.randint(0, 1)
+                x = self.random.randint(1, 11) - 1
+                y = self.random.randint(1, 11) - 1
+                o = self.random.randint(0, 2)
+                # print(str(x) + " " + str(y) + " " + str(o))
                 if o == 0:
                     ori = "v"
                 else:
@@ -673,6 +687,7 @@ def hide_ships(board):
         without_ships.append(board_row)
 
     return without_ships
+
 
 def print_board(s, board, show_ships):
     # WARNING: This function was crafted with a lot of attention. Please be aware that any
@@ -712,8 +727,6 @@ def print_board(s, board, show_ships):
                 line += " "
 
         print(line)
-
-
 
 
 def place_ship(board, ship, ori, x, y):
