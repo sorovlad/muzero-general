@@ -415,7 +415,6 @@ class Battlefield:
 
             self.ship_size = x
             self.is_horizontal = y == 0
-            return False
         return True
 
     def step(self, action):
@@ -425,7 +424,7 @@ class Battlefield:
 
         if self.stage == Stage_Arrangement:
             # self.count_step += 1
-            reward = 1 if self.set_ships(action) else 0
+            reward = 1 if self.set_ships(action) else -1
             return self.get_observation(), reward, False
 
         # print("count steps: " + str(self.count_step))
