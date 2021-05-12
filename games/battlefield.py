@@ -20,14 +20,14 @@ class MuZeroConfig:
         self.max_num_gpus = None  # Fix the maximum number of GPUs to use. It's usually faster to use a single GPU (set it to 1) if it has enough memory. None will use every GPUs available
 
         ### Game
-        self.observation_shape = (2, 10, 10)  # Dimensions of the game observation, must be 3D (channel, height, width). For a 1D array, please reshape it to (1, 1, length of array)
+        self.observation_shape = (3, 10, 10)  # Dimensions of the game observation, must be 3D (channel, height, width). For a 1D array, please reshape it to (1, 1, length of array)
         self.action_space = list(range(100))  # Fixed list of all possible actions. You should only edit the length
         self.players = list(range(2))  # List of players. You should only edit the length
         self.stacked_observations = 0  # Number of previous observations and previous actions to add to the current observation
 
         # Evaluate
         self.muzero_player = 0  # Turn Muzero begins to play (0: MuZero plays first, 1: MuZero plays second)
-        self.opponent = "expert"  # Hard coded agent that MuZero faces to assess his progress in multiplayer games. It doesn't influence training. None, "random" or "expert" if implemented in the Game class
+        self.opponent = "random"  # Hard coded agent that MuZero faces to assess his progress in multiplayer games. It doesn't influence training. None, "random" or "expert" if implemented in the Game class
 
         ### Self-Play
         self.num_workers = 4  # Number of simultaneous threads/workers self-playing to feed the replay buffer
@@ -61,10 +61,10 @@ class MuZeroConfig:
         self.resnet_fc_policy_layers = [32]  # Define the hidden layers in the policy head of the prediction network
 
         # Fully Connected Network
-        self.encoding_size = 16
+        self.encoding_size = 32
         self.fc_representation_layers = []  # Define the hidden layers in the representation network
-        self.fc_dynamics_layers = [32]  # Define the hidden layers in the dynamics network
-        self.fc_reward_layers = [32]  # Define the hidden layers in the reward network
+        self.fc_dynamics_layers = [64]  # Define the hidden layers in the dynamics network
+        self.fc_reward_layers = [64]  # Define the hidden layers in the reward network
         self.fc_value_layers = []  # Define the hidden layers in the value network
         self.fc_policy_layers = []  # Define the hidden layers in the policy network
 
@@ -74,9 +74,9 @@ class MuZeroConfig:
                 "%Y-%m-%d--%H-%M-%S"))  # Path to store the model weights and TensorBoard logs
         self.save_model = True  # Save the checkpoint in results_path as model.checkpoint
         self.training_steps = 1000  # Total number of training steps (ie weights update according to a batch)
-        self.batch_size = 64  # Number of parts of games to train on at each training step
-        self.checkpoint_interval = 5  # Number of training steps before using the model for self-playing
-        self.value_loss_weight = 0.25  # Scale the value loss to avoid overfitting of the value function, paper recommends 0.25 (See paper appendix Reanalyze)
+        self.batch_size = 128  # Number of parts of games to train on at each training step
+        self.checkpoint_interval = 10  # Number of training steps before using the model for self-playing
+        self.value_loss_weight = 1  # Scale the value loss to avoid overfitting of the value function, paper recommends 0.25 (See paper appendix Reanalyze)
         self.train_on_gpu = torch.cuda.is_available()  # Train on GPU if available
 
         self.optimizer = "SGD"  # "Adam" or "SGD". Paper uses SGD
@@ -90,19 +90,19 @@ class MuZeroConfig:
 
         ### Replay Buffer
         self.replay_buffer_size = 3000  # Number of self-play games to keep in the replay buffer
-        self.num_unroll_steps = 20  # Number of game moves to keep for every batch element
-        self.td_steps = 10  # Number of steps in the future to take into account for calculating the target value
+        self.num_unroll_steps = 200  # Number of game moves to keep for every batch element
+        self.td_steps = 200  # Number of steps in the future to take into account for calculating the target value
         self.PER = True  # Prioritized Replay (See paper appendix Training), select in priority the elements in the replay buffer which are unexpected for the network
         self.PER_alpha = 0.5  # How much prioritization is used, 0 corresponding to the uniform case, paper suggests 1
 
         # Reanalyze (See paper appendix Reanalyse)
-        self.use_last_model_value = True  # Use the last model to provide a fresher, stable n-step value (See paper appendix Reanalyze)
+        self.use_last_model_value = False  # Use the last model to provide a fresher, stable n-step value (See paper appendix Reanalyze)
         self.reanalyse_on_gpu = False
 
         ### Adjust the self play / training ratio to avoid over/underfitting
         self.self_play_delay = 0  # Number of seconds to wait after each played game
         self.training_delay = 0  # Number of seconds to wait after each training step
-        self.ratio = None  # Desired training steps per self played step ratio. Equivalent to a synchronous version, training can take much longer. Set it to None to disable it
+        self.ratio = 1  # Desired training steps per self played step ratio. Equivalent to a synchronous version, training can take much longer. Set it to None to disable it
 
     def visit_softmax_temperature_fn(self, trained_steps):
         """
@@ -241,7 +241,7 @@ Stage_Shooting = 1
 
 class Battlefield:
     def __init__(self, seed):
-        # self.random = numpy.random.RandomState(seed)
+        self.random = numpy.random.RandomState(seed)
         self.player = 1
         # self.stage = Stage_Arrangement
         self.stage = Stage_Shooting
@@ -268,13 +268,36 @@ class Battlefield:
 
         self.opponent_view = False
 
-
         # self.count_step = 0
 
-    @staticmethod
-    def legal_actions():
-        # 0 - 99 Координаты
-        return list(range(100))
+    def legal_actions(self):
+        # if self.stage == Stage_Arrangement:
+        #     board = self.user_board if self.player == 1 else self.comp_board
+        #     if self.ship_size:
+        #         if self.is_horizontal:
+        #             ori = "h"
+        #         else:
+        #             ori = "v"
+        #         valid = False
+        #         while (not valid):
+        #             x = self.random.randint(1, 10) - 1
+        #             y = self.random.randint(1, 10) - 1
+        #             valid = validate(board, self.ship_size, x, y, ori)
+        #         return x * 10 + y
+        #     else:
+        #         ships = self.player_ships if self.player == 1 else self.comp_ships
+        #         ship = ships.pop()
+        #         o = self.random.randint(0, 1)
+        #         return ship * 10 + o
+
+        board = self.comp_board if self.player == 1 else self.user_board
+        points = []
+
+        for i in range(10):
+            for j in range(10):
+                if board[i][j] == Board_Empty or board[i][j] == Board_Ship:
+                    points.append(i * 10 + j)
+        return points
 
     def reset(self):
         # global game_count
@@ -305,13 +328,12 @@ class Battlefield:
 
         return self.get_observation()
 
-    @staticmethod
-    def place_ships(board):
+    def place_ships(self, board):
         # types of ships
         ships = [1, 1, 1, 1, 2, 2, 2, 3, 3, 4]
 
         # ship placement
-        return computer_place_ships(board, ships)
+        return self.computer_place_ships(board, ships)
 
     @staticmethod
     def get_battlefield():
@@ -460,6 +482,7 @@ class Battlefield:
         #     print("Sorry, that coordinate was already hit. Please try again")
 
         done = check_win(board)
+        reward = 1 if done else 0
         # print("check_win", done, self.get_reward(self.player))
         # if done:
         #     reward = 100
@@ -478,11 +501,13 @@ class Battlefield:
 
         # user_board = numpy.full((10, 10), user_board, dtype="float32")
         # comp_board = numpy.full((10, 10), comp_board, dtype="float32")
+        board_to_play = numpy.full((10, 10), self.player, dtype="int32")
 
         return numpy.array([
             # numpy.full((10, 10), self.stage, dtype="float32"),
             user_board,
             comp_board,
+            board_to_play,
         ])
 
     # def get_reward(self, player):
@@ -584,30 +609,52 @@ class Battlefield:
                     ori = "v"
                 valid = False
                 while (not valid):
-                    x = random.randint(1, 10) - 1
-                    y = random.randint(1, 10) - 1
+                    x = self.random.randint(1, 10) - 1
+                    y = self.random.randint(1, 10) - 1
                     valid = validate(board, self.ship_size, x, y, ori)
                 return x * 10 + y
             else:
                 ships = self.player_ships if self.player == 1 else self.comp_ships
                 ship = ships.pop()
-                o = random.randint(0, 1)
+                o = self.random.randint(0, 1)
                 return ship * 10 + o
 
 
         # print_board("u", board, True)
+        board = self.comp_board if self.player == 1 else self.user_board
         points = []
 
         for i in range(10):
             for j in range(10):
                 if board[i][j] == Board_Empty or board[i][j] == Board_Ship:
                     points.append(i * 10 + j)
-        next_point = random.choice(points)
+        next_point = self.random.choice(points)
         # print(str(points))
         # print("nextPoint")
         # print(str(next_point))
 
         return next_point
+
+    def computer_place_ships(self, board, ships):
+        for ship in ships:
+
+            # generate random coordinates and validate the position
+            valid = False
+            while (not valid):
+                x = self.random.randint(1, 10) - 1
+                y = self.random.randint(1, 10) - 1
+                o = self.random.randint(0, 1)
+                if o == 0:
+                    ori = "v"
+                else:
+                    ori = "h"
+                valid = validate(board, ship, x, y, ori)
+
+            # place the ship
+            # print("Computer placing a/an " + ship)
+            board = place_ship(board, ship, ori, x, y)
+
+        return board
 
     def render(self):
         print_board("u", self.user_board, self.opponent_view or self.player == 1)
@@ -667,26 +714,6 @@ def print_board(s, board, show_ships):
         print(line)
 
 
-def computer_place_ships(board, ships):
-    for ship in ships:
-
-        # generate random coordinates and validate the position
-        valid = False
-        while (not valid):
-            x = random.randint(1, 10) - 1
-            y = random.randint(1, 10) - 1
-            o = random.randint(0, 1)
-            if o == 0:
-                ori = "v"
-            else:
-                ori = "h"
-            valid = validate(board, ship, x, y, ori)
-
-        # place the ship
-        # print("Computer placing a/an " + ship)
-        board = place_ship(board, ship, ori, x, y)
-
-    return board
 
 
 def place_ship(board, ship, ori, x, y):
